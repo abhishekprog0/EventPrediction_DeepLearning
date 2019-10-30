@@ -4,6 +4,5 @@ Certain Recurrent events could possibly have prediction power on the performance
 
 Earning surprise:
 Paper: https://papers.ssrn.com/sol3/papers.cfm?abstract_id=3420722
-
 Bankruptcy Prediction:
-https://papers.ssrn.com/sol3/papers.cfm?abstract_id=3420889
+Paper: https://papers.ssrn.com/sol3/papers.cfm?abstract_id=3420889
