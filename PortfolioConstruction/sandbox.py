@@ -2,12 +2,10 @@
 
 
 import pandas as pd
-import quandl
 import numpy as np
-import quandl
 import matplotlib.pyplot as plt
 import os
-import math
+import itertools
 #import talib
 
 from sklearn.preprocessing import MinMaxScaler
@@ -140,7 +138,7 @@ def getDataUntilDate(data_temp, data_dates, startingDate, stoppingDate):
         
     return (X_train, Y_train), (X_test, Y_test)
 
-def createPortfolio1(predDf, dataset, datasetDates):
+def createPortfolio1(predDf, dataset, datasetDates, long_only = False, exclude_citi = False):
     n = predDf.shape[0]
     weightColumns = predDf.columns[1:]
     weightDf = pd.DataFrame(columns = weightColumns)
@@ -161,6 +159,13 @@ def createPortfolio1(predDf, dataset, datasetDates):
             
             closePrice = df.iloc[foundIndex]['Close']
             proportions[j-1] = eps / closePrice
+            if (long_only and proportions[j-1] < 0):
+                proportions[j-1] = 0
+            if (exclude_citi and ((j-1) == ticker.index('Citigroup'))):
+                proportions[j-1] = 0
+        
+        if (long_only and sum(proportions) == 0):
+            proportions[:] = 1
         proportions = proportions / sum(proportions)
         weightDict = {}
         weightDict['Date'] = currDate
@@ -171,8 +176,7 @@ def createPortfolio1(predDf, dataset, datasetDates):
         
     return weightDf
 
-def createPortfolio2(predDf, dataset, datasetDates):
-    epsilon = 0.0001
+def createPortfolio2(predDf, dataset, datasetDates, long_only = False, exclude_citi = False):
     n = predDf.shape[0]
     weightColumns = predDf.columns[1:]
     weightDf = pd.DataFrame(columns = weightColumns)
@@ -192,11 +196,14 @@ def createPortfolio2(predDf, dataset, datasetDates):
                     break
             
             analyst = df.iloc[foundIndex]['EPS_Analyst']
-            propToUse = (eps - analyst) / eps
-            if (propToUse < epsilon):
-                propToUse = epsilon
-            proportions[j-1] = propToUse
-            
+            proportions[j-1] = (eps - analyst) / eps
+            if (long_only and proportions[j-1] < 0):
+                proportions[j-1] = 0
+            if (exclude_citi and ((j-1) == ticker.index('Citigroup'))):
+                proportions[j-1] = 0
+        
+        if (long_only and sum(proportions) == 0):
+            proportions[:] = 1
 
         proportions = proportions / sum(proportions)
         weightDict = {}
@@ -208,8 +215,7 @@ def createPortfolio2(predDf, dataset, datasetDates):
         
     return weightDf
 
-def createPortfolio3(predDf, dataset, datasetDates):
-    epsilon = 0.0001
+def createPortfolio3(predDf, dataset, datasetDates, long_only = False, exclude_citi = False):
     n = predDf.shape[0]
     weightColumns = predDf.columns[1:]
     weightDf = pd.DataFrame(columns = weightColumns)
@@ -234,10 +240,14 @@ def createPortfolio3(predDf, dataset, datasetDates):
                     break
             
             analyst = np.average(df.iloc[startDateIndex:foundIndex]['EPS_Analyst'])
-            propToUse = (eps - analyst) / analyst
-            if (propToUse < epsilon):
-                propToUse = epsilon
-            proportions[j-1] = propToUse
+            proportions[j-1] = (eps - analyst) / analyst
+            if (long_only and proportions[j-1] < 0):
+                proportions[j-1] = 0
+            if (exclude_citi and ((j-1) == ticker.index('Citigroup'))):
+                proportions[j-1] = 0
+        
+        if (long_only and sum(proportions) == 0):
+            proportions[:] = 1
         proportions = proportions / sum(proportions)
         weightDict = {}
         weightDict['Date'] = currDate
@@ -291,7 +301,7 @@ def calcReturns(weights, dataset, datasetDates):
     
     return prices
 
-def plotAgainstSP(prices, weight, spPrices):
+def plotAgainstSP(prices, weight, spPrices, title = '', imageFile = ''):
     n = prices.shape[0]
     m = prices.shape[1]-1
     
@@ -336,18 +346,25 @@ def plotAgainstSP(prices, weight, spPrices):
         sharpes[j] = returns[j] / vols[j]
     
     totalData = prices.copy()
-    totalData['SP500'] = spCleanPrices
+    totalData['SP_Index'] = spCleanPrices
     totalData['Date'] = weight.Date
+    plt.figure()
     for j in range(m):
         plt.plot( totalData.Date, totalData[j])
-    plt.plot(totalData.Date, totalData.SP500)
+    plt.plot(totalData.Date, totalData.SP_Index)
+    plt.title(title)
     plt.legend()
+    plt.savefig(imageFile)
 
     return relatives, absolutes, trackingErrors, alphas, ir, returns, vols, sharpes, spCleanPrices
     
 # MAIN code starts here
-ticker = ['WellsFargo', 'GoldmanSachs', 'BankOfAmerica', 'BerkshireHathaway', 'Blackrock', 'BNYMellon', 'Citigroup', 'JPMorgan', 'MorganStanley']
-
+financials = True
+if (financials):    
+    ticker = ['WellsFargo', 'GoldmanSachs', 'BankOfAmerica', 'BerkshireHathaway', 'Blackrock', 'BNYMellon', 'Citigroup', 'JPMorgan', 'MorganStanley']
+else:
+    ticker = []
+    
 os.chdir("C:\\Users\\hdharmaw\\OneDrive - GMO\\Documents\\4742\\project\\EventPrediction_DeepLearning\\FinalData")
 
 dataset = []
@@ -366,7 +383,7 @@ for item in dataset:
 
 trainingStartDate = datetime(2004,1,1)
 portfolioStartDate = datetime(2010,1,1)
-portfolioStopDate = datetime(2018,1,1)
+portfolioStopDate = datetime(2019,12,1)
 
 currDate = portfolioStartDate
 
@@ -377,7 +394,7 @@ predDf = pd.DataFrame(columns = predColumns)
 
 os.chdir("C:\\Users\\hdharmaw\\OneDrive - GMO\\Documents\\4742\\project\\EventPrediction_DeepLearning\\PortfolioConstruction")
 
-doPrediction = False
+doPrediction = True
 predFile = 'predictions.xlsx'
 print('*** Beginning Prediction Phase ***')
 if (doPrediction):
@@ -414,46 +431,65 @@ if (doPrediction):
     
 predDf = pd.read_excel(predFile)
 
-print('*** Beginning Construction Phase ***')
 
-doPortfolio1 = False
-doPortfolio2 = False
-doPortfolio3 = False
+doPortfolio1 = True
+doPortfolio2 = True
+doPortfolio3 = True
 
-weight1File = 'weights1.xlsx'
-weight2File = 'weights2.xlsx'
-weight3File = 'weights3.xlsx'
-
-if (doPortfolio1):
-    weight1Df = createPortfolio1(predDf, dataset, datasetDates)
-    weight1Df.to_excel(weight1File)
-weight1Df = pd.read_excel(weight1File)
+long_only_values = [True, False]
+exclude_citi_values = [True, False]
+combos = list(itertools.product(long_only_values, exclude_citi_values))
+for c in range(len(combos)):
+    print('*** Beginning Construction Phase ***')
     
-if (doPortfolio2):
-    weight2Df = createPortfolio2(predDf, dataset, datasetDates)
-    weight2Df.to_excel(weight2File)
-weight2Df = pd.read_excel(weight2File)
+    combo = combos[c]
+    long_only = combo[0]
+    exclude_citi = combo[1]
+
+    weight1File = 'weights1_' + str(long_only) + '_' + str(exclude_citi) + '.xlsx'
+    weight2File = 'weights2_' + str(long_only) + '_' + str(exclude_citi) + '.xlsx'
+    weight3File = 'weights3_' + str(long_only) + '_' + str(exclude_citi) + '.xlsx'
+    imageFile = 'plot_' + str(long_only) + '_' + str(exclude_citi) + '.png'
+
+    if (doPortfolio1):
+        weight1Df = createPortfolio1(predDf, dataset, datasetDates, long_only = long_only, exclude_citi = exclude_citi)
+        weight1Df.to_excel(weight1File)
+    weight1Df = pd.read_excel(weight1File)
+        
+    if (doPortfolio2):
+        weight2Df = createPortfolio2(predDf, dataset, datasetDates, long_only = long_only, exclude_citi = exclude_citi)
+        weight2Df.to_excel(weight2File)
+    weight2Df = pd.read_excel(weight2File)
+        
+    if (doPortfolio3):
+        weight3Df = createPortfolio3(predDf, dataset, datasetDates, long_only = long_only, exclude_citi = exclude_citi)
+        weight3Df.to_excel(weight3File)
+    weight3Df = pd.read_excel(weight3File)
     
-if (doPortfolio3):
-    weight3Df = createPortfolio3(predDf, dataset, datasetDates)
-    weight3Df.to_excel(weight3File)
-weight3Df = pd.read_excel(weight3File)
+    weights = [weight1Df, weight2Df, weight3Df]  
 
-weights = [weight1Df, weight2Df, weight3Df]  
-
-print('*** Beginning Return Calc Phase ***')
-
-doPrices = False
-pricesFile = 'prices.xlsx'
-if (doPrices):
-    prices = calcReturns(weights, dataset, datasetDates)
-    pd.DataFrame(prices).to_excel(pricesFile)
-prices = pd.read_excel(pricesFile)
-
-print('*** Beginning Analytics Phase ***')
-
-spPrices = pd.read_excel('sp500.xls')
-relatives, absolutes, trackingErrors, alphas, ir, returns, vols, sharpes, spCleanPrices = plotAgainstSP(prices, weights[0], spPrices)
+    print('*** Beginning Return Calc Phase ***')
+    
+    doPrices = True
+    pricesFile = 'prices_' + str(long_only) + '_' + str(exclude_citi) + '.xlsx'
+    if (doPrices):
+        prices = calcReturns(weights, dataset, datasetDates)
+        pd.DataFrame(prices).to_excel(pricesFile)
+    prices = pd.read_excel(pricesFile)
+    
+    print('*** Beginning Analytics Phase ***')
+    
+    if (financials):
+        spPrices = pd.read_excel('SPF prices.xls')
+    else:
+        spPrices = pd.read_excel('SPX prices.xls')
+        
+    title = 'Long Only' if long_only else 'Long Short'
+    title = title + ' - '
+    title = title + ('No Citi' if exclude_citi else 'With Citi')
+    
+    relatives, absolutes, trackingErrors, alphas, ir, returns, vols, sharpes, spCleanPrices = \
+        plotAgainstSP(prices, weights[0], spPrices, title = title, imageFile = imageFile)
 
 #i = 0
 #for df in dataset:
