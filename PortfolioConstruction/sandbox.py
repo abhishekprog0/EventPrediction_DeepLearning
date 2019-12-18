@@ -125,7 +125,8 @@ def getDataUntilDate(data_temp, data_dates, startingDate, stoppingDate):
         if (data_dates[i] > startingDate):
             beginIndex = i
             break
-        
+    
+    lastIndex = beginIndex+1
     for i in range(beginIndex, n):
         if (data_dates[i] > stoppingDate):
             lastIndex = i
@@ -157,7 +158,12 @@ def createPortfolio1(predDf, dataset, datasetDates, long_only = False, exclude_c
                     foundIndex = ii
                     break
             
+            if (foundIndex >= len(df)):
+                foundIndex = len(df) - 1
+            
             closePrice = df.iloc[foundIndex]['Close']
+            
+            
             proportions[j-1] = eps / closePrice
             if (long_only and proportions[j-1] < 0):
                 proportions[j-1] = 0
@@ -194,9 +200,15 @@ def createPortfolio2(predDf, dataset, datasetDates, long_only = False, exclude_c
                 if (dfDates[ii] > currDate):
                     foundIndex = ii
                     break
+            if (foundIndex >= len(df)):
+                foundIndex = len(df) - 1
             
-            analyst = df.iloc[foundIndex]['EPS_Analyst']
-            proportions[j-1] = (eps - analyst) / eps
+            analyst = df.iloc[foundIndex].get('EPS_Analyst')
+            if (analyst == None):
+                proportions[j-1] = 0
+            else:
+                proportions[j-1] = (eps - analyst) / eps
+
             if (long_only and proportions[j-1] < 0):
                 proportions[j-1] = 0
             if (exclude_citi and ((j-1) == ticker.index('Citigroup'))):
@@ -233,14 +245,22 @@ def createPortfolio3(predDf, dataset, datasetDates, long_only = False, exclude_c
                 if (dfDates[ii] > currDate):
                     foundIndex = ii
                     break
+
+            if (foundIndex >= len(df)):
+                foundIndex = len(df) - 1
+
             startDateToConsider = datetime(currDate.year-1, currDate.month, 1)  
             for jj in range(len(dfDates)):
                 if (dfDates[jj] > startDateToConsider):
                     startDateIndex = jj
                     break
             
-            analyst = np.average(df.iloc[startDateIndex:foundIndex]['EPS_Analyst'])
-            proportions[j-1] = (eps - analyst) / analyst
+            analyst = df.iloc[foundIndex].get('EPS_Analyst')
+            if (analyst == None):
+                proportions[j-1] = 0
+            else:
+                proportions[j-1] = (eps - analyst) / analyst
+
             if (long_only and proportions[j-1] < 0):
                 proportions[j-1] = 0
             if (exclude_citi and ((j-1) == ticker.index('Citigroup'))):
@@ -286,6 +306,11 @@ def calcReturns(weights, dataset, datasetDates):
                 if(dfDates[ii] >= periodEndDate):
                     endIndex = ii
                     break
+
+            if (startIndex >= len(df)):
+                startIndex = len(df) - 1
+            if (endIndex >= len(df)):
+                endIndex = len(df) - 1
                 
             startPrice = df.iloc[startIndex]['Close']    
             endPrice = df.iloc[endIndex]['Close']
@@ -359,97 +384,112 @@ def plotAgainstSP(prices, weight, spPrices, title = '', imageFile = ''):
     return relatives, absolutes, trackingErrors, alphas, ir, returns, vols, sharpes, spCleanPrices
     
 # MAIN code starts here
-financials = True
-if (financials):    
-    ticker = ['WellsFargo', 'GoldmanSachs', 'BankOfAmerica', 'BerkshireHathaway', 'Blackrock', 'BNYMellon', 'Citigroup', 'JPMorgan', 'MorganStanley']
-else:
-    ticker = []
-    
-os.chdir("C:\\Users\\hdharmaw\\OneDrive - GMO\\Documents\\4742\\project\\EventPrediction_DeepLearning\\FinalData")
-
-dataset = []
-for i in range(len(ticker)):
-    df = pd.read_excel(ticker[i] + '_Final.xlsx')
-    print(ticker[i])
-    print('Total dataset has {} days, and {} features.'.format(df.shape[0], df.shape[1]))
-    dataset.append(df)
-    
-datasetDates = []
-
-for item in dataset:
-    datasetDates.append(item['Date'])
-    del item['Date']
-
-
-trainingStartDate = datetime(2004,1,1)
-portfolioStartDate = datetime(2010,1,1)
-portfolioStopDate = datetime(2019,12,1)
-
-currDate = portfolioStartDate
-
-predColumns = ['Date']
-for i in range(len(ticker)):
-    predColumns.append(ticker[i])
-predDf = pd.DataFrame(columns = predColumns)
-
-os.chdir("C:\\Users\\hdharmaw\\OneDrive - GMO\\Documents\\4742\\project\\EventPrediction_DeepLearning\\PortfolioConstruction")
-
-doPrediction = True
-predFile = 'predictions.xlsx'
-print('*** Beginning Prediction Phase ***')
-if (doPrediction):
-    retrain = False
-    regressorDict = {}
-    while (currDate <= portfolioStopDate):
-        print(currDate)
-        currDateDict = {'Date': currDate}
-    
-        for i in range(len(dataset)):
-            df = dataset[i]
-            dfDates = datasetDates[i]
-
-            (X_train, Y_train), (X_test, Y_test) = getDataUntilDate(df, dfDates, trainingStartDate, currDate)        
-            
-            if (retrain or (currDate == portfolioStartDate)):
-                m1 = Model(X_train, Y_train, X_test, Y_test)
-                xgbModel, regressor = m1.trainModel(verbose_flag=False)
-                regressorDict[i] = regressor
-            else:
-                regressor = regressorDict[i]
-                
-            prediction = np.average(regressor.predict(X_test))
-            currDateDict[predColumns[i+1]] = prediction
-            
-        predDf = predDf.append(currDateDict, ignore_index=True)
-            
-        if (currDate.month == 12):
-            currDate = datetime(currDate.year+1, 1, 1)   
-        else:
-            currDate = datetime(currDate.year, currDate.month+1, 1)  
-    
-    predDf.to_excel(predFile)
-    
-predDf = pd.read_excel(predFile)
-
-
-doPortfolio1 = True
-doPortfolio2 = True
-doPortfolio3 = True
-
 long_only_values = [True, False]
 exclude_citi_values = [True, False]
-combos = list(itertools.product(long_only_values, exclude_citi_values))
+financials_only = [True, False]
+combos = list(itertools.product(long_only_values, exclude_citi_values, financials_only))
+
 for c in range(len(combos)):
+    print('*** Beginning Loop ***')
+    
+    combo = combos[c]
+    long_only = combo[0]
+    exclude_citi = combo[1]
+    financials = combo[2]
+    print('Long Only: ' + str(long_only))
+    print('Exclude Citi: ' + str(exclude_citi))
+    print('Financials: ' + str(financials))
+
+
+    if (financials):    
+        ticker = ['WellsFargo', 'GoldmanSachs', 'BankOfAmerica', 'BerkshireHathaway', 'Blackrock', 'BNYMellon', 'Citigroup', 'JPMorgan', 'MorganStanley']
+    else:
+        ticker = ['WellsFargo', 'GoldmanSachs', 'BankOfAmerica', 'BerkshireHathaway', 'Blackrock', 'BNYMellon', 'Citigroup', 'JPMorgan', 'MorganStanley','Adobe', 'Apple', 'NVIDIA']
+    
+    os.chdir("C:\\Users\\hdharmaw\\OneDrive - GMO\\Documents\\4742\\project\\EventPrediction_DeepLearning\\FinalData")
+
+    dataset = []
+    for i in range(len(ticker)):
+        df = pd.read_excel(ticker[i] + '_Final.xlsx')
+        print(ticker[i])
+        print('Total dataset has {} days, and {} features.'.format(df.shape[0], df.shape[1]))
+        dataset.append(df)
+    
+    datasetDates = []
+    
+    for item in dataset:
+        datasetDates.append(item['Date'])
+        del item['Date']
+
+
+    trainingStartDate = datetime(2004,1,1)
+    portfolioStartDate = datetime(2010,1,1)
+    
+    if (financials):
+        portfolioStopDate = datetime(2018,1,1)
+    else:
+        portfolioStopDate = datetime(2019,11,1)
+
+    currDate = portfolioStartDate
+
+    predColumns = ['Date']
+    for i in range(len(ticker)):
+        predColumns.append(ticker[i])
+    predDf = pd.DataFrame(columns = predColumns)
+    
+    os.chdir("C:\\Users\\hdharmaw\\OneDrive - GMO\\Documents\\4742\\project\\EventPrediction_DeepLearning\\PortfolioConstruction")
+    
+    doPrediction = True
+    predFile = 'predictions.xlsx'
+    print('*** Beginning Prediction Phase ***')
+    if (doPrediction):
+        retrain = False
+        regressorDict = {}
+        while (currDate <= portfolioStopDate):
+            print(currDate)
+            currDateDict = {'Date': currDate}
+        
+            for i in range(len(dataset)):
+                df = dataset[i]
+                dfDates = datasetDates[i]
+    
+                (X_train, Y_train), (X_test, Y_test) = getDataUntilDate(df, dfDates, trainingStartDate, currDate)        
+                
+                if (retrain or (currDate == portfolioStartDate)):
+                    m1 = Model(X_train, Y_train, X_test, Y_test)
+                    xgbModel, regressor = m1.trainModel(verbose_flag=False)
+                    regressorDict[i] = regressor
+                else:
+                    regressor = regressorDict[i]
+                    
+                prediction = np.average(regressor.predict(X_test))
+                currDateDict[predColumns[i+1]] = prediction
+                
+            predDf = predDf.append(currDateDict, ignore_index=True)
+                
+            if (currDate.month == 12):
+                currDate = datetime(currDate.year+1, 1, 1)   
+            else:
+                currDate = datetime(currDate.year, currDate.month+1, 1)  
+        
+        predDf.to_excel(predFile)
+        
+    predDf = pd.read_excel(predFile)
+    
+    doPortfolio1 = True
+    doPortfolio2 = True
+    doPortfolio3 = True
+    
     print('*** Beginning Construction Phase ***')
     
     combo = combos[c]
     long_only = combo[0]
     exclude_citi = combo[1]
 
-    weight1File = 'weights1_' + str(long_only) + '_' + str(exclude_citi) + '.xlsx'
-    weight2File = 'weights2_' + str(long_only) + '_' + str(exclude_citi) + '.xlsx'
-    weight3File = 'weights3_' + str(long_only) + '_' + str(exclude_citi) + '.xlsx'
-    imageFile = 'plot_' + str(long_only) + '_' + str(exclude_citi) + '.png'
+    weight1File = 'weights1_' + str(long_only) + '_' + str(exclude_citi) + '_' + str(financials) + '.xlsx'
+    weight2File = 'weights2_' + str(long_only) + '_' + str(exclude_citi) + '_' + str(financials) + '.xlsx'
+    weight3File = 'weights3_' + str(long_only) + '_' + str(exclude_citi) + '_' + str(financials) + '.xlsx'
+    imageFile = 'plot_' + str(long_only) + '_' + str(exclude_citi) + '_' + str(financials) + '.png'
 
     if (doPortfolio1):
         weight1Df = createPortfolio1(predDf, dataset, datasetDates, long_only = long_only, exclude_citi = exclude_citi)
@@ -471,7 +511,7 @@ for c in range(len(combos)):
     print('*** Beginning Return Calc Phase ***')
     
     doPrices = True
-    pricesFile = 'prices_' + str(long_only) + '_' + str(exclude_citi) + '.xlsx'
+    pricesFile = 'prices_' + str(long_only) + '_' + str(exclude_citi) + '_' + str(financials) + '.xlsx'
     if (doPrices):
         prices = calcReturns(weights, dataset, datasetDates)
         pd.DataFrame(prices).to_excel(pricesFile)
@@ -483,22 +523,12 @@ for c in range(len(combos)):
         spPrices = pd.read_excel('SPF prices.xls')
     else:
         spPrices = pd.read_excel('SPX prices.xls')
-        
-    title = 'Long Only' if long_only else 'Long Short'
+    
+    title = ('Financials ' if financials else 'All Sectors ') + ' - '
+    title = title + ('Long Only' if long_only else 'Long Short')
     title = title + ' - '
     title = title + ('No Citi' if exclude_citi else 'With Citi')
     
     relatives, absolutes, trackingErrors, alphas, ir, returns, vols, sharpes, spCleanPrices = \
         plotAgainstSP(prices, weights[0], spPrices, title = title, imageFile = imageFile)
 
-#i = 0
-#for df in dataset:
-#    (X_train, Y_train), (X_test, Y_test) = getData(df, inc_analyst = True)
-#
-#    m1 = Model(X_train, Y_train ,X_test, Y_test)
-#    xgbModel1, regressor1 = m1.trainModel(verbose_flag=False)
-#
-#    plot.lossStatsAndCurve(X_test, Y_test, regressor1, ticker[i])
-#    feature_importance = xgbModel1.feature_importances_.tolist()
-#    plot.featureImportance(feature_importance, 15, 0, ticker[i])
-#    i = i + 1
