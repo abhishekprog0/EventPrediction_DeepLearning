@@ -380,6 +380,9 @@ def plotAgainstSP(prices, weight, spPrices, title = '', imageFile = ''):
     plt.title(title)
     plt.legend()
     plt.savefig(imageFile)
+    
+    print(title)
+    print(ir)
 
     return relatives, absolutes, trackingErrors, alphas, ir, returns, vols, sharpes, spCleanPrices
     
@@ -439,7 +442,7 @@ for c in range(len(combos)):
     
     os.chdir("C:\\Users\\hdharmaw\\OneDrive - GMO\\Documents\\4742\\project\\EventPrediction_DeepLearning\\PortfolioConstruction")
     
-    doPrediction = True
+    doPrediction = False
     predFile = 'predictions.xlsx'
     print('*** Beginning Prediction Phase ***')
     if (doPrediction):
@@ -476,9 +479,9 @@ for c in range(len(combos)):
         
     predDf = pd.read_excel(predFile)
     
-    doPortfolio1 = True
-    doPortfolio2 = True
-    doPortfolio3 = True
+    doPortfolio1 = False
+    doPortfolio2 = False
+    doPortfolio3 = False
     
     print('*** Beginning Construction Phase ***')
     
@@ -510,7 +513,7 @@ for c in range(len(combos)):
 
     print('*** Beginning Return Calc Phase ***')
     
-    doPrices = True
+    doPrices = False
     pricesFile = 'prices_' + str(long_only) + '_' + str(exclude_citi) + '_' + str(financials) + '.xlsx'
     if (doPrices):
         prices = calcReturns(weights, dataset, datasetDates)
