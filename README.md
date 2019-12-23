@@ -1,9 +1,11 @@
-## Event Prediction using Deep Learning
+## Portfolio Management based on EPS Prediction using Ensemble Gradient Boosting Models
 
-Certain Recurrent events could possibly have prediction power on the performance of equity or ETF. When certain events happen, the market could possibly price in or would catch the expectation and affect the market after the events. For example, based on the maro events calendar: https://tradingeconomics.com/ could we find the relationship between the market events/prediction and the performance of the related asset. The relationship could be used to do clustering, and the events could be used as predicting signal for the portfolio.  Currently, certain theme that we care about would be: gold, ESG, job growth, energy (https://www.eia.gov/), and also different kind of economic events showed in the trading economics calendar above.  (Factset provide an event calendar which contain events data for certain portfolio the user select.  Earning prediction is the most populate events used now.)
+Since Financial datasets exhibits certain non-linear relationships among them, machine learning and deep learning models are extensively used to model the underlying non-linear patterns in the datasets and hence can be deployed to solve various prediction and classification based problems to generate abnormal returns. 
 
-Earning surprise:
-Paper: https://papers.ssrn.com/sol3/papers.cfm?abstract_id=3420722
+In our research we have used XGBoost model, a popular class of Ensemble Gradient Boosting Models to solve the multivariate regression problem of predicting a stock’s future Earnings per Share by using stocks’ preprocessed technical, fundamental and analyst’s forecast data, as well as by constructing creative and well researched feature engineerined indicators out of those datasets. By using feature engineered datasets and doing various hyperparameter tuning of the model, we were able to establish good results in our research. 
 
-Bankruptcy Prediction:
-Paper: https://papers.ssrn.com/sol3/papers.cfm?abstract_id=3420889
+We have demonstrated with the help of plots that our predicted EPS performs well in the out-sample by capturing the direction and movement of the actual EPS and we suggested to use these predicted EPS to construct various trading strategies. We concluded the robustness of our model by showing that our predictions works well across the Financial as well as Technological sectors. We have found out in our research the feature dependency of various technical and fundamental factors for predicting Earnings per Share and got intuitively coherent results. We have also shown that using Feature Selection method by ranking features which are highly correlated for predicting EPS and using them in our model can improve the prediction’s accuracy of the model. 
+
+Finally, we have used these predictions to construct simple alpha trading strategies and portfolios whose weights are allocated based on those alpha strategies to generate abnormal returns. With monthly trading and zero transaction costs, we have achieved a descent average Information Ratio of 6.14 with a particular trading strategy to support our prediction. 
+
+Our work can be extended by allowing to predict various fundamental factors other than just EPS to create more robust portoflios and alpha trading strategies.
